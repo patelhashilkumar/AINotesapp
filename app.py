@@ -28,7 +28,7 @@ if not api_key:
     print("Warning: GEMINI_API_KEY environment variable is not set")
     api_key = "dummy_key"  # Fallback for development
 genai.configure(api_key=api_key)
-model = genai.GenerativeModel('gemini-pro')  # Using gemini-pro instead of gemini-2.0-flash
+model = genai.GenerativeModel('gemini-2.0-flash')  # Using the correct model name
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
