@@ -11,7 +11,13 @@ from functools import wraps
 load_dotenv()
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///notes.db'
+
+# Database configuration
+DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///notes.db')
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-here')
 db = SQLAlchemy(app)
@@ -19,9 +25,10 @@ db = SQLAlchemy(app)
 # Load API key from environment variable
 api_key = os.getenv('GEMINI_API_KEY')
 if not api_key:
-    raise ValueError("GEMINI_API_KEY environment variable is not set")
+    print("Warning: GEMINI_API_KEY environment variable is not set")
+    api_key = "dummy_key"  # Fallback for development
 genai.configure(api_key=api_key)
-model = genai.GenerativeModel('gemini-2.0-flash')
+model = genai.GenerativeModel('gemini-pro')  # Using gemini-pro instead of gemini-2.0-flash
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -76,143 +83,7 @@ def generate_summary(content):
         print(f"Error generating summary: {e}")
         return None
 
-with app.app_context():
-    db.create_all()
-
-@app.route('/')
-@login_required
-def index():
-    notes = Note.query.filter_by(user_id=session['user_id']).order_by(Note.created_at.desc()).all()
-    return render_template('index.html', notes=notes)
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        user = User.query.filter_by(username=username).first()
-        
-        if user and user.check_password(password):
-            session['user_id'] = user.id
-            session['username'] = user.username
-            return redirect(url_for('index'))
-        flash('Invalid username or password')
-    return render_template('login.html')
-
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    if request.method == 'POST':
-        username = request.form.get('username')
-        email = request.form.get('email')
-        password = request.form.get('password')
-        
-        if User.query.filter_by(username=username).first():
-            flash('Username already exists')
-            return redirect(url_for('register'))
-        
-        if User.query.filter_by(email=email).first():
-            flash('Email already registered')
-            return redirect(url_for('register'))
-        
-        user = User(username=username, email=email)
-        user.set_password(password)
-        db.session.add(user)
-        db.session.commit()
-        
-        session['user_id'] = user.id
-        session['username'] = user.username
-        return redirect(url_for('index'))
-    return render_template('register.html')
-
-@app.route('/logout')
-def logout():
-    session.clear()
-    return redirect(url_for('login'))
-
-@app.route('/notes', methods=['POST'])
-@login_required
-def create_note():
-    data = request.json
-    
-    # Generate summary using Gemini
-    summary = generate_summary(data['content'])
-    
-    note = Note(
-        title=data['title'],
-        content=data['content'],
-        category=data.get('category', 'uncategorized'),
-        summary=summary,
-        user_id=session['user_id']
-    )
-    db.session.add(note)
-    db.session.commit()
-    return jsonify(note.to_dict()), 201
-
-@app.route('/notes/<int:note_id>', methods=['PUT'])
-@login_required
-def update_note(note_id):
-    note = Note.query.filter_by(id=note_id, user_id=session['user_id']).first_or_404()
-    data = request.json
-    
-    note.title = data['title']
-    note.content = data['content']
-    note.category = data.get('category', note.category)
-    
-    # Update summary if content changed
-    if note.content != data['content']:
-        note.summary = generate_summary(data['content'])
-    
-    db.session.commit()
-    return jsonify(note.to_dict())
-
-@app.route('/notes/<int:note_id>', methods=['DELETE'])
-@login_required
-def delete_note(note_id):
-    note = Note.query.filter_by(id=note_id, user_id=session['user_id']).first_or_404()
-    db.session.delete(note)
-    db.session.commit()
-    return '', 204
-
-@app.route('/notes/search')
-@login_required
-def search_notes():
-    query = request.args.get('q', '')
-    notes = Note.query.filter(
-        Note.user_id == session['user_id'],
-        (Note.title.ilike(f'%{query}%')) |
-        (Note.content.ilike(f'%{query}%')) |
-        (Note.summary.ilike(f'%{query}%'))
-    ).order_by(Note.created_at.desc()).all()
-    return jsonify([note.to_dict() for note in notes])
-
-@app.route('/notes/<int:note_id>/summarize', methods=['POST'])
-@login_required
-def regenerate_summary(note_id):
-    note = Note.query.filter_by(id=note_id, user_id=session['user_id']).first_or_404()
-    note.summary = generate_summary(note.content)
-    db.session.commit()
-    return jsonify(note.to_dict())
-
-@app.route('/notes/reorder', methods=['POST'])
-@login_required
-def reorder_notes():
-    data = request.json
-    order = data.get('order', [])
-    
-    # Update the order of notes
-    for index, note_id in enumerate(order):
-        note = Note.query.filter_by(id=note_id, user_id=session['user_id']).first()
-        if note:
-            note.order = index
-    
-    db.session.commit()
-    return jsonify({'status': 'success'})
-
-@app.route('/notes/<int:note_id>', methods=['GET'])
-@login_required
-def get_note(note_id):
-    note = Note.query.filter_by(id=note_id, user_id=session['user_id']).first_or_404()
-    return jsonify(note.to_dict())
-
 if __name__ == '__main__':
-    app.run(debug=True)
+    with app.app_context():
+        db.create_all()
+    app.run(host='0.0.0.0', port=int(os.getenv('PORT', 5000)))
