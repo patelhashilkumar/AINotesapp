@@ -2,8 +2,6 @@
 
 A modern, feature-rich notes application with AI-powered summarization, built with Flask and JavaScript.
 
-![Notes App Screenshot](static/img/screenshot.png)
-
 ## Features
 
 - **User Authentication**: Secure login and registration system
