@@ -83,7 +83,134 @@ def generate_summary(content):
         print(f"Error generating summary: {e}")
         return None
 
+# Create database tables
+with app.app_context():
+    db.create_all()
+
+@app.route('/')
+@login_required
+def index():
+    notes = Note.query.filter_by(user_id=session['user_id']).order_by(Note.created_at.desc()).all()
+    return render_template('index.html', notes=notes)
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        user = User.query.filter_by(username=username).first()
+        
+        if user and user.check_password(password):
+            session['user_id'] = user.id
+            session['username'] = user.username
+            return redirect(url_for('index'))
+        flash('Invalid username or password')
+    return render_template('login.html')
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        
+        if User.query.filter_by(username=username).first():
+            flash('Username already exists')
+            return redirect(url_for('register'))
+        
+        if User.query.filter_by(email=email).first():
+            flash('Email already registered')
+            return redirect(url_for('register'))
+        
+        user = User(username=username, email=email)
+        user.set_password(password)
+        db.session.add(user)
+        db.session.commit()
+        
+        session['user_id'] = user.id
+        session['username'] = user.username
+        return redirect(url_for('index'))
+    return render_template('register.html')
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
+
+@app.route('/notes', methods=['POST'])
+@login_required
+def create_note():
+    data = request.json
+    summary = generate_summary(data['content'])
+    
+    note = Note(
+        title=data['title'],
+        content=data['content'],
+        category=data.get('category', 'uncategorized'),
+        summary=summary,
+        user_id=session['user_id']
+    )
+    db.session.add(note)
+    db.session.commit()
+    return jsonify(note.to_dict()), 201
+
+@app.route('/notes/<int:note_id>', methods=['PUT'])
+@login_required
+def update_note(note_id):
+    note = Note.query.filter_by(id=note_id, user_id=session['user_id']).first_or_404()
+    data = request.json
+    
+    note.title = data['title']
+    note.content = data['content']
+    note.category = data.get('category', note.category)
+    
+    if note.content != data['content']:
+        note.summary = generate_summary(data['content'])
+    
+    db.session.commit()
+    return jsonify(note.to_dict())
+
+@app.route('/notes/<int:note_id>', methods=['DELETE'])
+@login_required
+def delete_note(note_id):
+    note = Note.query.filter_by(id=note_id, user_id=session['user_id']).first_or_404()
+    db.session.delete(note)
+    db.session.commit()
+    return '', 204
+
+@app.route('/notes/search')
+@login_required
+def search_notes():
+    query = request.args.get('q', '')
+    notes = Note.query.filter(
+        Note.user_id == session['user_id'],
+        (Note.title.ilike(f'%{query}%')) |
+        (Note.content.ilike(f'%{query}%')) |
+        (Note.summary.ilike(f'%{query}%'))
+    ).order_by(Note.created_at.desc()).all()
+    return jsonify([note.to_dict() for note in notes])
+
+@app.route('/notes/<int:note_id>/summarize', methods=['POST'])
+@login_required
+def regenerate_summary(note_id):
+    note = Note.query.filter_by(id=note_id, user_id=session['user_id']).first_or_404()
+    note.summary = generate_summary(note.content)
+    db.session.commit()
+    return jsonify(note.to_dict())
+
+@app.route('/notes/reorder', methods=['POST'])
+@login_required
+def reorder_notes():
+    data = request.json
+    order = data.get('order', [])
+    
+    for index, note_id in enumerate(order):
+        note = Note.query.filter_by(id=note_id, user_id=session['user_id']).first()
+        if note:
+            note.order = index
+    
+    db.session.commit()
+    return jsonify({'status': 'success'})
+
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
     app.run(host='0.0.0.0', port=int(os.getenv('PORT', 5000)))
