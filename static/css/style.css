@@ -254,19 +254,33 @@ body {
 .note-actions {
     display: flex;
     gap: 10px;
+    position: relative;
+    z-index: 10;
 }
 
 .action-btn {
     background: none;
     border: none;
+    padding: 5px;
     color: var(--text-muted-light);
     cursor: pointer;
-    transition: color 0.3s;
+    transition: color 0.3s, transform 0.2s;
     font-size: 16px;
+    border-radius: 4px;
 }
 
 .action-btn:hover {
     color: var(--primary-color);
+    transform: scale(1.1);
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+.edit-btn {
+    color: #4a90e2;
+}
+
+.delete-btn {
+    color: #e25555;
 }
 
 /* Modal Styles */

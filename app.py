@@ -208,5 +208,11 @@ def reorder_notes():
     db.session.commit()
     return jsonify({'status': 'success'})
 
+@app.route('/notes/<int:note_id>', methods=['GET'])
+@login_required
+def get_note(note_id):
+    note = Note.query.filter_by(id=note_id, user_id=session['user_id']).first_or_404()
+    return jsonify(note.to_dict())
+
 if __name__ == '__main__':
     app.run(debug=True)

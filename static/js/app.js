@@ -75,28 +75,42 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Add this to your existing event listeners setup
+    // Add event listener for edit and delete buttons using event delegation
     document.addEventListener('click', async (e) => {
-        if (e.target.closest('.regenerate-summary')) {
-            const button = e.target.closest('.regenerate-summary');
-            const noteId = button.dataset.id;
-            
-            try {
-                const response = await fetch(`/notes/${noteId}/summarize`, {
-                    method: 'POST'
-                });
-                
-                if (response.ok) {
-                    const updatedNote = await response.json();
-                    const noteCard = button.closest('.note-card');
-                    noteCard.outerHTML = createNoteCard(updatedNote);
+        const editBtn = e.target.closest('.edit-btn');
+        const deleteBtn = e.target.closest('.delete-btn');
+        
+        if (editBtn) {
+            e.stopPropagation(); // Prevent event bubbling
+            const noteId = editBtn.dataset.id;
+            const note = await fetchNoteById(noteId);
+            if (note) showModal(note);
+        } else if (deleteBtn) {
+            e.stopPropagation(); // Prevent event bubbling
+            if (confirm('Are you sure you want to delete this note?')) {
+                const noteId = deleteBtn.dataset.id;
+                try {
+                    await fetch(`/notes/${noteId}`, { method: 'DELETE' });
+                    fetchNotes();
+                } catch (error) {
+                    console.error('Error deleting note:', error);
+                    alert('Error deleting note. Please try again.');
                 }
-            } catch (error) {
-                console.error('Error regenerating summary:', error);
-                alert('Error regenerating summary. Please try again.');
             }
         }
     });
+
+    // Add this new function to fetch a single note
+    async function fetchNoteById(noteId) {
+        try {
+            const response = await fetch(`/notes/search?q=id:${noteId}`);
+            const notes = await response.json();
+            return notes.length > 0 ? notes[0] : null;
+        } catch (error) {
+            console.error('Error fetching note:', error);
+            return null;
+        }
+    }
 
     // Functions
     function showModal(note = null) {
@@ -104,17 +118,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const titleInput = document.getElementById('note-title');
         const contentInput = document.getElementById('note-content');
         const categorySelect = document.getElementById('note-category');
+        const form = document.getElementById('note-form');
 
         if (note) {
             modalTitle.textContent = 'Edit Note';
             titleInput.value = note.title;
             contentInput.value = note.content;
-            categorySelect.value = note.category;
-            currentNoteId = note.id;
+            categorySelect.value = note.category || 'work';
+            form.dataset.noteId = note.id;
         } else {
             modalTitle.textContent = 'Add New Note';
-            noteForm.reset();
-            currentNoteId = null;
+            form.reset();
+            delete form.dataset.noteId;
         }
 
         noteModal.classList.add('active');
@@ -158,26 +173,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function handleSubmit(e) {
         e.preventDefault();
+        const form = e.target;
+        const noteId = form.dataset.noteId;
 
         const formData = {
-            title: document.getElementById('note-title').value,
-            content: document.getElementById('note-content').value,
+            title: document.getElementById('note-title').value.trim(),
+            content: document.getElementById('note-content').value.trim(),
             category: document.getElementById('note-category').value
         };
 
+        if (!formData.title || !formData.content) {
+            alert('Title and content are required!');
+            return;
+        }
+
         try {
-            if (currentNoteId) {
-                await fetch(`/notes/${currentNoteId}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(formData)
-                });
-            } else {
-                await fetch('/notes', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(formData)
-                });
+            const url = noteId ? `/notes/${noteId}` : '/notes';
+            const method = noteId ? 'PUT' : 'POST';
+            
+            const response = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to save note');
             }
 
             hideModal();
