@@ -196,8 +196,11 @@ body {
     position: relative;
     transition: transform 0.3s, box-shadow 0.3s;
     box-shadow: 0 4px 6px var(--shadow-color);
-    cursor: move;
+    cursor: pointer;
     user-select: none;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
 }
 
 .note-card:hover {
@@ -223,6 +226,7 @@ body {
     font-weight: 500;
     text-transform: uppercase;
     margin-bottom: 15px;
+    width: fit-content;
 }
 
 .category-work { background-color: #e84e6a; }
@@ -232,47 +236,87 @@ body {
 .note-title {
     font-size: 18px;
     font-weight: 600;
-    margin-bottom: 10px;
     color: var(--text-primary-light);
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+    overflow: hidden;
+}
+
+.note-content-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
 }
 
 .note-content {
     color: var(--text-secondary-light);
-    margin-bottom: 20px;
     line-height: 1.6;
     font-size: 14px;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow: hidden;
+}
+
+.note-summary {
+    padding-top: 15px;
+    border-top: 1px solid var(--border-color-light);
+}
+
+.summary-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.note-summary p {
+    color: var(--text-secondary-light);
+    font-size: 13px;
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
 }
 
 .note-footer {
+    padding-top: 15px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    border-top: 1px solid var(--border-color-light);
+    margin-top: auto;
+}
+
+.note-timestamp {
     color: var(--text-muted-light);
     font-size: 12px;
 }
 
 .note-actions {
     display: flex;
-    gap: 10px;
-    position: relative;
-    z-index: 10;
+    gap: 8px;
+    z-index: 2;
 }
 
 .action-btn {
     background: none;
     border: none;
-    padding: 5px;
+    padding: 4px;
     color: var(--text-muted-light);
     cursor: pointer;
-    transition: color 0.3s, transform 0.2s;
-    font-size: 16px;
+    transition: all 0.2s ease;
     border-radius: 4px;
+    font-size: 16px;
+    line-height: 1;
 }
 
 .action-btn:hover {
+    background-color: rgba(0, 0, 0, 0.1);
     color: var(--primary-color);
     transform: scale(1.1);
-    background-color: rgba(0, 0, 0, 0.1);
 }
 
 .edit-btn {
@@ -295,6 +339,7 @@ body {
     justify-content: center;
     align-items: center;
     z-index: 1000;
+    overflow: hidden;
 }
 
 .modal.active {
@@ -305,10 +350,13 @@ body {
     background-color: var(--bg-card-light);
     padding: 30px;
     border-radius: 15px;
-    width: 90%;
-    max-width: 800px;
+    width: 800px;
+    height: 600px;
     box-shadow: 0 10px 25px var(--shadow-color);
-    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
 .modal-content h2 {
@@ -520,29 +568,16 @@ body {
     .notes-container {
         grid-template-columns: 1fr;
     }
-}
 
-.note-summary {
-    margin-top: 15px;
-    padding-top: 15px;
-    border-top: 1px solid var(--border-color);
-}
-
-.summary-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 10px;
-}
-
-.summary-header svg {
-    color: var(--text-muted-light);
-}
-
-.summary-header span {
-    color: var(--text-muted-light);
-    font-size: 14px;
-    font-weight: 500;
+    .modal-content {
+        width: 95%;
+        height: 80vh;
+        padding: 20px;
+    }
+    
+    .expanded-note {
+        padding: 20px;
+    }
 }
 
 .regenerate-summary {
@@ -568,4 +603,129 @@ body {
     color: var(--text-muted-light);
     font-style: italic;
     font-size: 14px;
+}
+
+.expanded-note {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.expanded-header {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border-color-light);
+}
+
+.expanded-content {
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 20px;
+}
+
+.expanded-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.expanded-content::-webkit-scrollbar-track {
+    background: var(--bg-light);
+    border-radius: 4px;
+}
+
+.expanded-content::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 4px;
+}
+
+.expanded-content::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-hover);
+}
+
+.expanded-content p {
+    line-height: 1.8;
+    font-size: 16px;
+    color: var(--text-primary-light);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.close-btn {
+    font-size: 20px;
+    padding: 5px;
+    cursor: pointer;
+    background: none;
+    border: none;
+    color: var(--text-muted-light);
+    transition: color 0.3s;
+}
+
+.close-btn:hover {
+    color: var(--primary-color);
+}
+
+.header-left {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.expanded-header h2 {
+    font-size: 24px;
+    color: var(--text-primary-light);
+    margin: 0;
+}
+
+.expanded-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.expanded-actions .action-btn {
+    padding: 8px;
+    font-size: 18px;
+}
+
+.expanded-note .note-category {
+    margin: 0;
+}
+
+.expanded-note .note-summary {
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color-light);
+}
+
+.expanded-note .note-summary p {
+    color: var(--text-secondary-light);
+    font-size: 14px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    display: block;
+    -webkit-line-clamp: unset;
+    -webkit-box-orient: unset;
+    overflow: visible;
+}
+
+.expanded-note .summary-header {
+    margin-bottom: 15px;
+}
+
+/* Keep truncation only for card view */
+.note-card .note-summary p {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
 }

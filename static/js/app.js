@@ -139,28 +139,63 @@ document.addEventListener('DOMContentLoaded', () => {
         noteModal.classList.remove('active');
         noteForm.reset();
         currentNoteId = null;
-        document.querySelector('.modal-content').style.maxWidth = '500px';
+        // Reset modal content to its original state
+        const modalContent = document.querySelector('.modal-content');
+        if (modalContent.style.maxWidth) {
+            modalContent.style.maxWidth = '';
+        }
     }
 
     function showExpandedNote(note) {
         const modalContent = document.querySelector('.modal-content');
+        // Remove any inline styles that might have been set
+        modalContent.removeAttribute('style');
+        
         modalContent.innerHTML = `
             <div class="expanded-note">
-                <span class="note-category category-${note.category}">${note.category}</span>
-                <h2>${note.title}</h2>
-                <p class="note-content">${note.content}</p>
-                <div class="note-summary">
-                    <div class="summary-header">
-                        <span>Summary</span>
+                <div class="expanded-header">
+                    <div class="header-left">
+                        <span class="note-category category-${note.category}">${note.category}</span>
+                        <h2>${note.title}</h2>
                     </div>
-                    ${note.summary ? `<p>${note.summary}</p>` : '<p class="no-summary">No summary available.</p>'}
+                    <div class="expanded-actions">
+                        <button class="action-btn edit-btn" data-id="${note.id}" title="Edit">✏️</button>
+                        <button class="action-btn close-btn" title="Close">✕</button>
+                    </div>
                 </div>
-                <div class="note-footer">
-                    <span>${formatDate(note.created_at)}</span>
+                <div class="expanded-content">
+                    <p>${note.content}</p>
+                    <div class="note-summary">
+                        <div class="summary-header">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                                <line x1="16" y1="13" x2="8" y2="13"></line>
+                                <line x1="16" y1="17" x2="8" y2="17"></line>
+                                <line x1="10" y1="9" x2="8" y2="9"></line>
+                            </svg>
+                            <span>Summary</span>
+                        </div>
+                        ${note.summary ? `<p>${note.summary}</p>` : '<p class="no-summary">No summary available.</p>'}
+                    </div>
+                    <div class="note-footer">
+                        <span class="note-timestamp">${formatDate(note.created_at)}</span>
+                    </div>
                 </div>
             </div>
         `;
-        modalContent.style.maxWidth = '800px';
+
+        // Add event listeners
+        const closeBtn = modalContent.querySelector('.close-btn');
+        const editBtn = modalContent.querySelector('.edit-btn');
+
+        closeBtn.addEventListener('click', hideModal);
+        editBtn.addEventListener('click', () => {
+            hideModal();
+            showModal(note);
+        });
+
+        // Show the modal
         noteModal.classList.add('active');
 
         // Close expanded note when clicking outside
@@ -168,6 +203,18 @@ document.addEventListener('DOMContentLoaded', () => {
             if (e.target === noteModal) {
                 hideModal();
             }
+        }, { once: true });
+
+        // Handle keyboard shortcuts
+        const handleKeyPress = (e) => {
+            if (e.key === 'Escape') {
+                hideModal();
+            }
+        };
+
+        document.addEventListener('keydown', handleKeyPress);
+        noteModal.addEventListener('hide', () => {
+            document.removeEventListener('keydown', handleKeyPress);
         }, { once: true });
     }
 
@@ -344,33 +391,29 @@ document.addEventListener('DOMContentLoaded', () => {
     function createNoteCard(note) {
         return `
             <div class="note-card">
-                <span class="note-category category-${note.category}">${note.category}</span>
-                <h3 class="note-title">${note.title}</h3>
-                <p class="note-content">${note.content}</p>
-                <div class="note-summary">
-                    <div class="summary-header">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                            <polyline points="14 2 14 8 20 8"></polyline>
-                            <line x1="16" y1="13" x2="8" y2="13"></line>
-                            <line x1="16" y1="17" x2="8" y2="17"></line>
-                            <line x1="10" y1="9" x2="8" y2="9"></line>
-                        </svg>
-                        <span>Summary</span>
-                        <button class="regenerate-summary" data-id="${note.id}">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/>
+                <div class="note-content-wrapper">
+                    <span class="note-category category-${note.category}">${note.category}</span>
+                    <h3 class="note-title">${note.title}</h3>
+                    <p class="note-content">${note.content}</p>
+                    <div class="note-summary">
+                        <div class="summary-header">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                                <line x1="16" y1="13" x2="8" y2="13"></line>
+                                <line x1="16" y1="17" x2="8" y2="17"></line>
+                                <line x1="10" y1="9" x2="8" y2="9"></line>
                             </svg>
-                            ${note.summary ? 'Regenerate' : 'Generate'} Summary
-                        </button>
+                            <span>Summary</span>
+                        </div>
+                        ${note.summary ? `<p>${note.summary}</p>` : '<p class="no-summary">No summary yet. Click to generate one.</p>'}
                     </div>
-                    ${note.summary ? `<p>${note.summary}</p>` : '<p class="no-summary">No summary yet. Click to generate one.</p>'}
                 </div>
                 <div class="note-footer">
-                    <span>${formatDate(note.created_at)}</span>
+                    <span class="note-timestamp">${formatDate(note.created_at)}</span>
                     <div class="note-actions">
-                        <button class="action-btn edit-btn" data-id="${note.id}">✏️</button>
-                        <button class="action-btn delete-btn" data-id="${note.id}">🗑️</button>
+                        <button class="action-btn edit-btn" data-id="${note.id}" title="Edit">✏️</button>
+                        <button class="action-btn delete-btn" data-id="${note.id}" title="Delete">🗑️</button>
                     </div>
                 </div>
             </div>
